@@ -1,0 +1,54 @@
+name: "Sync Doc website"
+
+on:
+  push:
+    branches: ["main", "dev"]
+  pull_request:
+  workflow_dispatch:
+
+# Permissions needed to deploy to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build_doc:
+    name: "Build documentation using uv"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+
+    - name: Install the project
+      run: uv sync --all-extras --dev
+
+    - name: Build mkdocs
+      run: uv run mkdocs build
+
+    # Special action to prepare the artifact for GitHub Pages
+    - name: Upload Pages Artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: site/
+
+  deploy:
+    name: "Publish Docs"
+    needs: build_doc
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
